@@ -1,0 +1,195 @@
+/* =================================================================== */
+/* STYLE V4: LSKK ZENITH THEME                            */
+/* =================================================================== */
+
+:root {
+    --font-family: 'Inter', sans-serif;
+    --transition-speed: 0.3s;
+    
+    /* Palet Warna Gelap (Dark Mode) */
+    --bg-sidebar: #111827;      /* Gray-900 */
+    --bg-main: #1f2937;         /* Gray-800 */
+    --bg-card: #374151;         /* Gray-700 */
+    --border-color: #4b5563;    /* Gray-600 */
+    --text-primary: #f9fafb;    /* Gray-50 */
+    --text-secondary: #9ca3af;  /* Gray-400 */
+    --accent-primary: #34d399;  /* Emerald-400 */
+    --accent-primary-hover: #10b981; /* Emerald-500 */
+
+    /* Warna Status */
+    --status-todo: #f87171;       /* Red-400 */
+    --status-inprogress: #60a5fa; /* Blue-400 */
+    --status-done: #4ade80;        /* Green-400 */
+}
+
+/* --- Reset & Pengaturan Dasar --- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+/* --- Tata Letak Utama (Sidebar + Konten) --- */
+.app-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    background-color: var(--bg-sidebar);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+}
+.sidebar-header {
+    margin-bottom: 2rem;
+    padding-left: 0.5rem;
+}
+.logo {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 2px;
+}
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+.nav-link svg { width: 24px; height: 24px; }
+.nav-link:hover {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+}
+.nav-link.active {
+    background-color: var(--accent-primary);
+    color: var(--bg-sidebar);
+    font-weight: 600;
+}
+
+/* --- Konten Utama --- */
+.main-content {
+    padding: 2rem;
+    overflow-y: auto;
+}
+.view-container { animation: fadeIn 0.5s ease; }
+.hidden { display: none; }
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.content-header h2 { font-size: 1.8rem; font-weight: 700; }
+.filters-wrapper { display: flex; gap: 1rem; }
+
+/* --- Komponen Umum (Input, Tombol, dll) --- */
+input, select {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.8rem;
+    font-size: 1rem;
+    width: 100%;
+    transition: all var(--transition-speed) ease;
+}
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+button {
+    background-color: var(--accent-primary);
+    color: var(--bg-sidebar);
+    border: none;
+    border-radius: 8px;
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+button:hover { background-color: var(--accent-primary-hover); }
+
+/* --- Tampilan Admin --- */
+.controls-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; }
+.control-card { background-color: var(--bg-card); padding: 1.5rem; border-radius: 12px; }
+.card-title { margin: 0 0 1.5rem 0; font-size: 1.2rem; }
+#project-form, #task-form { display: flex; flex-direction: column; gap: 1rem; }
+#project-list { list-style: none; margin-top: 1rem; }
+#project-list li { display: flex; justify-content: space-between; padding: 0.7rem; border-radius: 6px; }
+#project-list li:nth-child(odd) { background-color: var(--bg-main); }
+.delete-project-btn { background: none; color: var(--text-secondary); cursor: pointer; padding: 0.2rem; }
+.delete-project-btn:hover { color: var(--status-todo); }
+
+/* --- Tampilan Papan Kanban --- */
+.kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+.column-title { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 1rem; padding-left: 0.5rem; }
+.task-card {
+    background-color: var(--bg-card);
+    padding: 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    border-left: 4px solid;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all var(--transition-speed) ease;
+}
+.task-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+#todo-tasks .task-card { border-color: var(--status-todo); }
+#inprogress-tasks .task-card { border-color: var(--status-inprogress); }
+#done-tasks .task-card { border-color: var(--status-done); }
+.task-card p { font-weight: 600; margin-bottom: 1rem; }
+.task-meta { font-size: 0.9rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.task-meta span { display: flex; align-items: center; gap: 0.5rem; }
+.task-actions { display: flex; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
+.delete-task-btn { background: none; color: var(--text-secondary); font-size: 1.1rem; padding: 0.5rem; }
+.delete-task-btn:hover { color: var(--status-todo); }
+
+/* --- Tampilan Tabel --- */
+.table-container { background-color: var(--bg-card); border-radius: 12px; overflow: hidden; }
+.task-table { width: 100%; border-collapse: collapse; }
+.task-table th, .task-table td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+.task-table th { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.task-table tbody tr:hover { background-color: var(--bg-main); }
+.status-badge { padding: 0.3rem 0.8rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem; color: var(--bg-sidebar); }
+.status-badge.todo { background-color: var(--status-todo); }
+.status-badge.inprogress { background-color: var(--status-inprogress); }
+.status-badge.done { background-color: var(--status-done); }
+
+/* --- Responsivitas --- */
+@media (max-width: 1024px) {
+    .app-layout { grid-template-columns: 1fr; }
+    .sidebar {
+        grid-row: 1;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        height: 70px;
+    }
+    .sidebar-nav { display: flex; gap: 0.2rem; }
+    .nav-link span { display: none; }
+    .nav-link { padding: 0.7rem; }
+    .main-content { padding: 1rem; }
+}
+@media (max-width: 768px) {
+    .controls-grid { grid-template-columns: 1fr; }
+    .content-header { flex-direction: column; align-items: flex-start; }
+}
