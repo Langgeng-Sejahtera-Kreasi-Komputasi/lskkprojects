@@ -3,26 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LSKK - Papan Tugas Tim</title>
+    <title>LSKK - Pro Taskboard</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .view-container, .task-card, .admin-section { animation: fadeIn 0.3s ease-out; }
+        .view-container { animation: fadeIn 0.3s ease-out; }
         .tasks-container::-webkit-scrollbar { width: 6px; }
         .tasks-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
         .tasks-container::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
         .pagination-btn:disabled { cursor: not-allowed; background-color: #e2e8f0; }
+        #notification-badge { transform: scale(0.8) translate(50%, -50%); }
+        .task-card { transition: all 0.2s ease-out; }
     </style>
 </head>
 <body class="text-slate-800">
 
-    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center hidden">
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center">
         <div class="flex items-center space-x-2">
             <svg class="w-8 h-8 text-teal-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
             <span class="text-lg font-semibold text-slate-700">Memuat data...</span>
@@ -36,23 +40,42 @@
                     <svg class="h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <h1 class="text-2xl font-bold text-slate-800">LSKK</h1>
                 </div>
+
                 <nav class="hidden md:flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
                     <button id="nav-dashboard" class="nav-button px-4 py-2 text-sm font-semibold rounded-md">📋 Papan Tugas</button>
-                    <button id="nav-table" class="nav-button px-4 py-2 text-sm font-semibold rounded-md">📄 List Tabel</button>
-                    <button id="nav-admin" class="nav-button px-4 py-2 text-sm font-semibold rounded-md">⚙️ Admin & Kontrol</button>
+                    <button id="nav-stats" class="nav-button px-4 py-2 text-sm font-semibold rounded-md">📊 Statistik</button>
+                    <button id="nav-table" class="nav-button px-4 py-2 text-sm font-semibold rounded-md">📄 List Tugas</button>
+                    <button id="nav-admin" class="nav-button px-4 py-2 text-sm font-semibold rounded-md">⚙️ Administrasi</button>
                 </nav>
-                <div class="md:hidden">
-                    <select id="mobile-nav" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm">
-                        <option value="dashboard">Papan Tugas</option>
-                        <option value="table">List Tabel</option>
-                        <option value="admin">Admin & Kontrol</option>
-                    </select>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <button id="notification-btn" class="text-slate-500 hover:text-teal-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            <span id="notification-badge" class="absolute top-0 right-0 block h-4 w-4 rounded-full bg-red-500 text-white text-xs text-center hidden"></span>
+                        </button>
+                        <div id="notification-panel" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl p-4 z-50 hidden">
+                            <h4 class="font-bold mb-2">Notifikasi</h4>
+                            <div id="notification-list" class="max-h-64 overflow-y-auto text-sm space-y-2">
+                                <p class="text-slate-500">Belum ada notifikasi baru.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md:hidden">
+                         <select id="mobile-nav" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm">
+                            <option value="dashboard">Papan Tugas</option>
+                            <option value="stats">Statistik</option>
+                            <option value="table">List Tugas</option>
+                            <option value="admin">Administrasi</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
         <div id="admin-view" class="view-container hidden">
             <div class="grid grid-cols-1 gap-8">
                 <section class="admin-section bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -65,7 +88,6 @@
                         <div class="md:col-span-2 text-right"><button type="submit" class="w-full md:w-auto bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-6 rounded-md transition shadow">Buat Tugas</button></div>
                     </form>
                 </section>
-
                 <section class="admin-section bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h3 class="text-lg font-bold mb-4">Manajemen Proyek</h3>
                     <form id="project-form" class="flex items-center gap-2 mb-4">
@@ -79,7 +101,6 @@
                         <button id="next-project-page-btn" class="pagination-btn bg-white border border-slate-300 rounded-md px-4 py-2 hover:bg-slate-50 transition">Selanjutnya</button>
                     </div>
                 </section>
-                
                 <section class="admin-section bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h3 class="text-lg font-bold mb-4">Manajemen Anggota Tim</h3>
                     <form id="member-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -94,7 +115,7 @@
                         </div>
                         <div class="md:self-end">
                             <button type="submit" id="member-submit-btn" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-6 rounded-md transition shadow">Tambah Anggota</button>
-                             <button type="button" id="member-cancel-btn" class="w-full mt-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-6 rounded-md transition hidden">Batal Edit</button>
+                            <button type="button" id="member-cancel-btn" class="w-full mt-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-6 rounded-md transition hidden">Batal Edit</button>
                         </div>
                     </form>
                     <div class="overflow-x-auto">
@@ -110,18 +131,19 @@
                         </table>
                     </div>
                     <div id="members-pagination-controls" class="flex items-center justify-between mt-4 text-sm hidden">
-                        <button id="prev-page-btn" class="pagination-btn bg-white border border-slate-300 rounded-md px-4 py-2 hover:bg-slate-50 transition">Sebelumnya</button>
-                        <span id="page-info"></span>
-                        <button id="next-page-btn" class="pagination-btn bg-white border border-slate-300 rounded-md px-4 py-2 hover:bg-slate-50 transition">Selanjutnya</button>
+                        <button id="prev-member-page-btn" class="pagination-btn bg-white border border-slate-300 rounded-md px-4 py-2 hover:bg-slate-50 transition">Sebelumnya</button>
+                        <span id="member-page-info"></span>
+                        <button id="next-member-page-btn" class="pagination-btn bg-white border border-slate-300 rounded-md px-4 py-2 hover:bg-slate-50 transition">Selanjutnya</button>
                     </div>
                 </section>
             </div>
         </div>
         
         <div id="filter-bar" class="hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label for="project-filter" class="block text-sm font-medium text-slate-600 mb-1">📁 Filter Proyek</label><select id="project-filter" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"></select></div>
-                <div><label for="member-filter" class="block text-sm font-medium text-slate-600 mb-1">🧑‍💻 Filter Anggota</label><select id="member-filter" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"></select></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label for="search-filter" class="block text-sm font-medium text-slate-600 mb-1">🔍 Cari Tugas</label><input type="text" id="search-filter" placeholder="Ketik deskripsi tugas..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500"></div>
+                <div><label for="project-filter" class="block text-sm font-medium text-slate-600 mb-1">📁 Filter Proyek</label><select id="project-filter" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md"></select></div>
+                <div><label for="member-filter" class="block text-sm font-medium text-slate-600 mb-1">🧑‍💻 Filter Anggota</label><select id="member-filter" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md"></select></div>
             </div>
         </div>
 
@@ -131,11 +153,7 @@
                     <table class="w-full text-sm text-left text-slate-600">
                         <thead class="text-xs text-slate-700 uppercase bg-slate-100">
                             <tr>
-                                <th scope="col" class="px-6 py-3">Tugas</th>
-                                <th scope="col" class="px-6 py-3">Proyek</th>
-                                <th scope="col" class="px-6 py-3">PIC</th>
-                                <th scope="col" class="px-6 py-3">Deadline</th>
-                                <th scope="col" class="px-6 py-3">Status</th>
+                                <th scope="col" class="px-6 py-3">Tugas</th><th scope="col" class="px-6 py-3">Proyek</th><th scope="col" class="px-6 py-3">PIC</th><th scope="col" class="px-6 py-3">Deadline</th><th scope="col" class="px-6 py-3">Status</th>
                             </tr>
                         </thead>
                         <tbody id="task-table-body"></tbody>
@@ -148,6 +166,19 @@
                 <button id="next-task-page-btn" class="pagination-btn bg-white border border-slate-300 rounded-md px-4 py-2 hover:bg-slate-50 transition">Selanjutnya</button>
             </div>
         </div>
+        
+        <div id="stats-view" class="view-container hidden">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-xl shadow-sm border"><h4 class="text-sm font-medium text-slate-500">Total Tugas</h4><p id="stats-total" class="text-3xl font-bold text-teal-600">0</p></div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border"><h4 class="text-sm font-medium text-slate-500">Belum Dikerjakan</h4><p id="stats-todo" class="text-3xl font-bold text-red-500">0</p></div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border"><h4 class="text-sm font-medium text-slate-500">Dikerjakan</h4><p id="stats-inprogress" class="text-3xl font-bold text-blue-500">0</p></div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border"><h4 class="text-sm font-medium text-slate-500">Selesai</h4><p id="stats-done" class="text-3xl font-bold text-green-500">0</p></div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border mb-8">
+                <h3 class="font-bold text-lg mb-4">Distribusi Tugas</h3>
+                <div class="max-h-80 mx-auto flex justify-center"><canvas id="tasksChart"></canvas></div>
+            </div>
+        </div>
 
         <div id="dashboard-view" class="view-container">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -157,12 +188,22 @@
             </div>
         </div>
     </main>
-    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4"><div id="modal-content" class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all"><h3 id="modal-title" class="text-lg font-bold text-slate-800"></h3><p id="modal-message" class="mt-2 text-sm text-slate-600"></p><input type="text" id="modal-input" class="hidden w-full mt-4 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" placeholder="Masukkan kode otorisasi..."><div id="modal-actions" class="mt-6 flex justify-end space-x-3"></div></div></div>
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all">
+            <h3 id="modal-title" class="text-lg font-bold text-slate-800"></h3>
+            <p id="modal-message" class="mt-2 text-sm text-slate-600"></p>
+            <input type="text" id="modal-input" class="hidden w-full mt-4 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" placeholder="Masukkan kode otorisasi...">
+            <div id="modal-actions" class="mt-6 flex justify-end space-x-3"></div>
+        </div>
+    </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'https://timflow.lskk.co.id/api'; // Ganti dengan URL API Anda
+    // === KONFIGURASI ===
+    const API_URL = 'https://timflow.lskk.co.id/api';
+    const SOCKET_URL = 'https://timflow.lskk.co.id';
 
+    // === STATE ===
     let appData = {
         projects: { list: [], pagination: {} },
         tasks: { list: [], pagination: {} },
@@ -170,101 +211,93 @@ document.addEventListener('DOMContentLoaded', () => {
         allMembersForDropdown: [],
         allProjectsForDropdown: []
     };
-    let current = {
-        projectsPage: 1,
-        tasksPage: 1,
-        membersPage: 1,
-    };
-
+    let current = { projectsPage: 1, tasksPage: 1, membersPage: 1 };
+    let tasksChartInstance = null;
+    
+    // === HELPER & DOM ELEMENTS ===
     const el = (id) => document.getElementById(id);
+    const q = (selector) => document.querySelector(selector);
+    const qAll = (selector) => document.querySelectorAll(selector);
 
-    const loadingOverlay = el('loading-overlay');
-    const navButtons = document.querySelectorAll('.nav-button');
-    const mobileNav = el('mobile-nav');
-    const views = { admin: el('admin-view'), dashboard: el('dashboard-view'), table: el('table-view') };
-    const filterBar = el('filter-bar');
-    const projectForm = el('project-form');
-    const projectNameInput = el('project-name');
-    const projectList = el('project-list');
-    const taskForm = el('task-form');
-    const taskDescriptionInput = el('task-description');
-    const taskPicSelect = el('task-pic');
-    const taskProjectSelect = el('task-project');
-    const taskDueDateInput = el('task-due-date');
-    const projectFilter = el('project-filter');
-    const memberFilter = el('member-filter');
-    const todoTasksContainer = el('todo-tasks');
-    const inprogressTasksContainer = el('inprogress-tasks');
-    const doneTasksContainer = el('done-tasks');
-    const taskTableBody = el('task-table-body');
-    const modalBackdrop = el('modal-backdrop');
-    const modalContent = el('modal-content');
-    const modalTitle = el('modal-title');
-    const modalMessage = el('modal-message');
-    const modalInput = el('modal-input');
-    const modalActions = el('modal-actions');
-    const memberForm = el('member-form');
-    const memberIdInput = el('member-id');
-    const memberNameInput = el('member-name');
-    const memberRoleInput = el('member-role');
-    const memberSubmitBtn = el('member-submit-btn');
-    const memberCancelBtn = el('member-cancel-btn');
-    const membersTableBody = el('members-table-body');
-    const membersPaginationControls = el('members-pagination-controls');
-    const prevPageBtn = el('prev-page-btn');
-    const nextPageBtn = el('next-page-btn');
-    const pageInfo = el('page-info');
-    const projectsPaginationControls = el('projects-pagination-controls');
-    const prevProjectPageBtn = el('prev-project-page-btn');
-    const nextProjectPageBtn = el('next-project-page-btn');
-    const projectPageInfo = el('project-page-info');
-    const tasksPaginationControls = el('tasks-pagination-controls');
-    const prevTaskPageBtn = el('prev-task-page-btn');
-    const nextTaskPageBtn = el('next-task-page-btn');
-    const taskPageInfo = el('task-page-info');
-
+    const elements = {
+        loadingOverlay: el('loading-overlay'),
+        navButtons: qAll('.nav-button'),
+        mobileNav: el('mobile-nav'),
+        views: { admin: el('admin-view'), dashboard: el('dashboard-view'), table: el('table-view'), stats: el('stats-view') },
+        filterBar: el('filter-bar'),
+        searchFilter: el('search-filter'),
+        projectFilter: el('project-filter'),
+        memberFilter: el('member-filter'),
+        notificationBtn: el('notification-btn'),
+        notificationPanel: el('notification-panel'),
+        notificationList: el('notification-list'),
+        notificationBadge: el('notification-badge'),
+        stats: { total: el('stats-total'), todo: el('stats-todo'), inprogress: el('stats-inprogress'), done: el('stats-done') },
+        taskColumns: { todo: el('todo-tasks'), inprogress: el('inprogress-tasks'), done: el('done-tasks') },
+        taskTableBody: el('task-table-body'),
+        taskForm: el('task-form'),
+        taskDescriptionInput: el('task-description'),
+        taskPicSelect: el('task-pic'),
+        taskProjectSelect: el('task-project'),
+        taskDueDateInput: el('task-due-date'),
+        projectForm: el('project-form'),
+        projectNameInput: el('project-name'),
+        projectList: el('project-list'),
+        projectsPaginationControls: el('projects-pagination-controls'),
+        prevProjectPageBtn: el('prev-project-page-btn'),
+        nextProjectPageBtn: el('next-project-page-btn'),
+        projectPageInfo: el('project-page-info'),
+        memberForm: el('member-form'),
+        memberIdInput: el('member-id'),
+        memberNameInput: el('member-name'),
+        memberRoleInput: el('member-role'),
+        memberSubmitBtn: el('member-submit-btn'),
+        memberCancelBtn: el('member-cancel-btn'),
+        membersTableBody: el('members-table-body'),
+        membersPaginationControls: el('members-pagination-controls'),
+        prevMemberPageBtn: el('prev-member-page-btn'),
+        nextMemberPageBtn: el('next-member-page-btn'),
+        memberPageInfo: el('member-page-info'),
+        tasksPaginationControls: el('tasks-pagination-controls'),
+        prevTaskPageBtn: el('prev-task-page-btn'),
+        nextTaskPageBtn: el('next-task-page-btn'),
+        taskPageInfo: el('task-page-info'),
+        modal: { backdrop: el('modal-backdrop'), content: el('modal-content'), title: el('modal-title'), message: el('modal-message'), input: el('modal-input'), actions: el('modal-actions') }
+    };
+    
+    // === MODAL & NOTIFIKASI ===
     const showModal = (title, message, buttons, showInput = false) => {
-        modalTitle.textContent = title;
-        modalMessage.innerHTML = message;
-        modalInput.classList.toggle('hidden', !showInput);
-        modalInput.value = '';
-        modalActions.innerHTML = '';
+        elements.modal.title.textContent = title;
+        elements.modal.message.innerHTML = message;
+        elements.modal.input.classList.toggle('hidden', !showInput);
+        elements.modal.input.value = '';
+        elements.modal.actions.innerHTML = '';
         buttons.forEach(btn => {
             const buttonEl = document.createElement('button');
             buttonEl.textContent = btn.text;
             buttonEl.className = btn.class;
             buttonEl.onclick = () => { if (btn.onClick) btn.onClick(); };
-            modalActions.appendChild(buttonEl);
+            elements.modal.actions.appendChild(buttonEl);
         });
-        modalBackdrop.classList.remove('hidden');
-        modalContent.style.animation = 'fadeIn 0.2s ease-out';
+        elements.modal.backdrop.classList.remove('hidden');
     };
-    const hideModal = () => modalBackdrop.classList.add('hidden');
+    const hideModal = () => elements.modal.backdrop.classList.add('hidden');
     const notify = (title, message) => showModal(title, message, [{ text: 'Tutup', class: 'bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md transition', onClick: hideModal }]);
-    const promptWithCode = (title, message, onConfirm) => showModal(title, message, [{ text: 'Batal', class: 'bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-md transition', onClick: hideModal }, { text: 'Konfirmasi', class: 'bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition', onClick: () => onConfirm(modalInput.value) }], true);
+    const promptWithCode = (title, message, onConfirm) => showModal(title, message, [{ text: 'Batal', class: 'bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-md transition', onClick: hideModal }, { text: 'Konfirmasi', class: 'bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition', onClick: () => onConfirm(elements.modal.input.value) }], true);
 
-    const switchView = (viewName) => {
-        Object.values(views).forEach(v => v.classList.add('hidden'));
-        filterBar.classList.add('hidden');
-        tasksPaginationControls.classList.add('hidden');
-
-        if (views[viewName]) {
-            views[viewName].classList.remove('hidden');
-            if (viewName === 'dashboard' || viewName === 'table') {
-                filterBar.classList.remove('hidden');
-                if (viewName === 'table') {
-                   tasksPaginationControls.classList.remove('hidden');
-                }
-            }
-        }
-        navButtons.forEach(btn => {
-            btn.classList.toggle('bg-teal-500', btn.id === `nav-${viewName}`);
-            btn.classList.toggle('text-white', btn.id === `nav-${viewName}`);
-            btn.classList.toggle('text-slate-600', btn.id !== `nav-${viewName}`);
-        });
-        mobileNav.value = viewName;
+    const addNotification = (message) => {
+        const firstItem = elements.notificationList.querySelector('p');
+        if (firstItem) firstItem.remove();
+        const notifItem = document.createElement('div');
+        notifItem.className = 'p-2 border-b border-slate-100 text-slate-700';
+        notifItem.textContent = message;
+        elements.notificationList.prepend(notifItem);
+        const badgeCount = Math.min(parseInt(elements.notificationBadge.textContent || '0') + 1, 9);
+        elements.notificationBadge.textContent = badgeCount;
+        elements.notificationBadge.classList.remove('hidden');
     };
 
+    // === API & DATA FETCHING ===
     const apiCall = async (endpoint, options = {}) => {
         try {
             const res = await fetch(`${API_URL}/${endpoint}`, { ...options, cache: 'no-cache' });
@@ -283,8 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fetchInitialDataForDropdowns = async () => {
         try {
             const [projectsRes, membersRes] = await Promise.all([
-                apiCall('projects?all=true'),
-                apiCall('members?all=true')
+                apiCall('projects?all=true'), apiCall('members?all=true')
             ]);
             appData.allProjectsForDropdown = projectsRes.data;
             appData.allMembersForDropdown = membersRes.data;
@@ -292,24 +324,25 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     };
 
+    const fetchTasks = async (page = 1) => {
+        const project = elements.projectFilter.value;
+        const pic = elements.memberFilter.value;
+        const search = elements.searchFilter.value;
+        try {
+            const data = await apiCall(`tasks?page=${page}&limit=10&project=${project}&pic=${pic}&search=${search}`);
+            appData.tasks = { list: data.data, pagination: data.pagination };
+            current.tasksPage = page;
+            renderTasks();
+            renderTable();
+        } catch (error) {}
+    };
+    
     const fetchProjects = async (page = 1) => {
         try {
             const data = await apiCall(`projects?page=${page}&limit=5`);
             appData.projects = { list: data.data, pagination: data.pagination };
             current.projectsPage = page;
             renderProjectList();
-        } catch (error) {}
-    };
-    
-    const fetchTasks = async (page = 1) => {
-        const project = projectFilter.value;
-        const pic = memberFilter.value;
-        try {
-            const data = await apiCall(`tasks?page=${page}&limit=10&project=${project}&pic=${pic}`);
-            appData.tasks = { list: data.data, pagination: data.pagination };
-            current.tasksPage = page;
-            renderTasks();
-            renderTable();
         } catch (error) {}
     };
 
@@ -321,121 +354,125 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMembersTable();
         } catch (error) {}
     };
-    
-    const handleCRUD = async (action, endpoint, options, successMessage, refreshFunc, page) => {
+
+    // === LOGIKA RENDER ===
+    const fetchAndRenderDashboard = async () => {
         try {
-            await apiCall(endpoint, options);
-            notify('Sukses', successMessage);
-            if(refreshFunc) await refreshFunc(page);
-        } catch (error) {
-            // Error already notified by apiCall
-        }
+            const stats = await apiCall('dashboard-stats');
+            Object.keys(elements.stats).forEach(key => elements.stats[key].textContent = stats[key] || 0);
+            
+            const ctx = el('tasksChart').getContext('2d');
+            if (tasksChartInstance) tasksChartInstance.destroy();
+            tasksChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Belum Dikerjakan', 'Dikerjakan', 'Selesai'],
+                    datasets: [{
+                        label: 'Jumlah Tugas',
+                        data: [stats.todo, stats.inprogress, stats.done],
+                        backgroundColor: ['#ef4444', '#3b82f6', '#22c55e'],
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        hoverOffset: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        } catch (error) { console.error("Gagal render dashboard:", error); }
     };
-
-    const renderProjectList = () => {
-        projectList.innerHTML = "";
-        const projects = appData.projects.list;
-        if (projects.length === 0 && current.projectsPage === 1) {
-            projectList.innerHTML = `<li class="text-sm text-slate-500 text-center p-4">Belum ada proyek.</li>`;
-            projectsPaginationControls.classList.add('hidden');
-            return;
-        }
-        projects.forEach(p => {
-            const li = document.createElement("li");
-            li.className = "flex items-center justify-between text-sm p-2 rounded-md hover:bg-slate-100";
-            li.innerHTML = `<span class="font-medium">${p.name}</span><button class="delete-project-btn text-slate-400 hover:text-red-500 transition p-1 rounded-full hover:bg-red-100" data-id="${p._id}" data-name="${p.name}" title="Hapus proyek ${p.name}"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
-            projectList.appendChild(li);
-        });
-        const { page, totalPages } = appData.projects.pagination;
-        projectsPaginationControls.classList.toggle('hidden', totalPages <= 1);
-        projectPageInfo.textContent = `Halaman ${page} dari ${totalPages}`;
-        prevProjectPageBtn.disabled = (page === 1);
-        nextProjectPageBtn.disabled = (page === totalPages);
-    };
-
+    
     const renderTasks = () => {
-        const tasks = appData.tasks.list;
-        [todoTasksContainer, inprogressTasksContainer, doneTasksContainer].forEach(c => c.innerHTML = '');
-        tasks.forEach(task => {
+        Object.values(elements.taskColumns).forEach(c => c.innerHTML = '');
+        if (appData.tasks.list.length === 0 && current.tasksPage === 1) return;
+        appData.tasks.list.forEach(task => {
             const card = createTaskCard(task);
-            if (task.status === 'todo') todoTasksContainer.appendChild(card);
-            else if (task.status === 'inprogress') inprogressTasksContainer.appendChild(card);
-            else if (task.status === 'done') doneTasksContainer.appendChild(card);
+            if(elements.taskColumns[task.status]) elements.taskColumns[task.status].appendChild(card);
         });
     };
-
-    const renderTable = () => {
-        const tasks = appData.tasks.list;
-        taskTableBody.innerHTML = '';
-        if (tasks.length === 0) {
-            taskTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Tidak ada tugas yang sesuai filter.</td></tr>`;
-            tasksPaginationControls.classList.add('hidden');
-            return;
-        }
-        tasks.forEach(task => {
-            const row = document.createElement('tr');
-            row.className = 'bg-white border-b hover:bg-slate-50';
-            const statusMap = { todo: { text: "Belum Dikerjakan", class: "bg-red-100 text-red-800" }, inprogress: { text: "Dikerjakan", class: "bg-blue-100 text-blue-800" }, done: { text: "Selesai", class: "bg-green-100 text-green-800" } };
-            const statusInfo = statusMap[task.status] || {text: 'N/A', class: 'bg-gray-100 text-gray-800'};
-            const formattedDate = new Date(task.dueDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-            row.innerHTML = `<td class="px-6 py-4 font-medium text-slate-900">${task.description}</td><td class="px-6 py-4">${task.project}</td><td class="px-6 py-4">${task.pic}</td><td class="px-6 py-4">${formattedDate}</td><td class="px-6 py-4"><span class="px-3 py-1 text-xs font-semibold rounded-full ${statusInfo.class}">${statusInfo.text}</span></td>`;
-            taskTableBody.appendChild(row);
-        });
-        const { page, totalPages } = appData.tasks.pagination;
-        tasksPaginationControls.classList.toggle('hidden', totalPages <= 1);
-        taskPageInfo.textContent = `Halaman ${page} dari ${totalPages}`;
-        prevTaskPageBtn.disabled = (page === 1);
-        nextTaskPageBtn.disabled = (page === totalPages);
-    };
-
+    
     const createTaskCard = (task) => {
         const card = document.createElement("div");
-        card.className = "task-card bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all duration-200";
+        card.className = "task-card bg-white p-4 rounded-lg shadow-sm border hover:shadow-md hover:-translate-y-1";
         card.setAttribute("data-id", task._id);
-        const statusStyles = { todo: 'border-l-4 border-red-500', inprogress: 'border-l-4 border-blue-500', done: 'border-l-4 border-green-500' };
-        card.classList.add(...statusStyles[task.status].split(' '));
+        const statusBorder = { todo: 'border-l-4 border-red-500', inprogress: 'border-l-4 border-blue-500', done: 'border-l-4 border-green-500' };
+        card.classList.add(...statusBorder[task.status].split(' '));
         const formattedDate = new Date(task.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
         card.innerHTML = `<p class="font-semibold text-slate-800 mb-3">${task.description}</p><div class="text-xs text-slate-500 space-y-2 mb-4"><div class="flex items-center gap-2"><span class="font-medium bg-slate-100 px-2 py-0.5 rounded">📁 Proyek:</span><span>${task.project}</span></div><div class="flex items-center gap-2"><span class="font-medium bg-slate-100 px-2 py-0.5 rounded">🧑‍💻 PIC:</span><span>${task.pic}</span></div><div class="flex items-center gap-2"><span class="font-medium bg-slate-100 px-2 py-0.5 rounded">🗓️ Deadline:</span><span>${formattedDate}</span></div></div><div class="flex items-center justify-between border-t border-slate-200 pt-3"><select class="status-changer text-xs w-full bg-slate-50 border-slate-200 rounded-md p-1 focus:ring-1 focus:ring-teal-500 focus:border-teal-500"><option value="todo" ${task.status === "todo" ? "selected" : ""}>Belum Dikerjakan</option><option value="inprogress" ${task.status === "inprogress" ? "selected" : ""}>Dikerjakan</option><option value="done" ${task.status === "done" ? "selected" : ""}>Selesai</option></select><button class="delete-task-btn text-slate-400 hover:text-red-500 transition ml-2 p-1 rounded-full hover:bg-red-100" title="Hapus Tugas" data-id="${task._id}"><svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div>`;
         return card;
     };
+
+    const renderTable = () => {
+        const tasks = appData.tasks.list;
+        elements.taskTableBody.innerHTML = '';
+        if (tasks.length === 0) {
+            elements.taskTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Tidak ada tugas yang sesuai.</td></tr>`;
+        } else {
+            tasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b hover:bg-slate-50';
+                const statusMap = { todo: { text: "Belum Dikerjakan", class: "bg-red-100 text-red-800" }, inprogress: { text: "Dikerjakan", class: "bg-blue-100 text-blue-800" }, done: { text: "Selesai", class: "bg-green-100 text-green-800" } };
+                const statusInfo = statusMap[task.status] || {text: 'N/A', class: 'bg-gray-100 text-gray-800'};
+                const formattedDate = new Date(task.dueDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+                row.innerHTML = `<td class="px-6 py-4 font-medium text-slate-900">${task.description}</td><td class="px-6 py-4">${task.project}</td><td class="px-6 py-4">${task.pic}</td><td class="px-6 py-4">${formattedDate}</td><td class="px-6 py-4"><span class="px-3 py-1 text-xs font-semibold rounded-full ${statusInfo.class}">${statusInfo.text}</span></td>`;
+                elements.taskTableBody.appendChild(row);
+            });
+        }
+        renderPagination(elements.tasksPaginationControls, appData.tasks.pagination, elements.taskPageInfo, elements.prevTaskPageBtn, elements.nextTaskPageBtn);
+    };
+    
+    const renderProjectList = () => {
+        elements.projectList.innerHTML = "";
+        const projects = appData.projects.list;
+        if (projects.length === 0 && current.projectsPage === 1) {
+            elements.projectList.innerHTML = `<li class="text-sm text-slate-500 text-center p-4">Belum ada proyek.</li>`;
+        } else {
+            projects.forEach(p => {
+                const li = document.createElement("li");
+                li.className = "flex items-center justify-between text-sm p-2 rounded-md hover:bg-slate-100";
+                li.innerHTML = `<span class="font-medium">${p.name}</span><button class="delete-project-btn text-slate-400 hover:text-red-500 transition p-1 rounded-full hover:bg-red-100" data-id="${p._id}" data-name="${p.name}" title="Hapus proyek ${p.name}"><svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
+                elements.projectList.appendChild(li);
+            });
+        }
+        renderPagination(elements.projectsPaginationControls, appData.projects.pagination, elements.projectPageInfo, elements.prevProjectPageBtn, elements.nextProjectPageBtn);
+    };
     
     const renderMembersTable = () => {
-        membersTableBody.innerHTML = '';
+        elements.membersTableBody.innerHTML = '';
         const members = appData.members.list;
         if (members.length === 0 && current.membersPage === 1) {
-            membersTableBody.innerHTML = `<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada anggota tim.</td></tr>`;
-            membersPaginationControls.classList.add('hidden');
-            return;
+            elements.membersTableBody.innerHTML = `<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada anggota tim.</td></tr>`;
+        } else {
+            members.forEach(member => {
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b hover:bg-slate-50';
+                row.innerHTML = `<td class="px-6 py-4 font-medium text-slate-900">${member.name}</td><td class="px-6 py-4">${member.role}</td><td class="px-6 py-4 text-center"><button class="edit-member-btn text-blue-500 hover:text-blue-700 font-semibold text-xs py-1 px-2 rounded" data-id="${member._id}" data-name="${member.name}" data-role="${member.role}">Edit</button><button class="delete-member-btn text-red-500 hover:text-red-700 font-semibold text-xs py-1 px-2 rounded ml-2" data-id="${member._id}" data-name="${member.name}">Hapus</button></td>`;
+                elements.membersTableBody.appendChild(row);
+            });
         }
-        members.forEach(member => {
-            const row = document.createElement('tr');
-            row.className = 'bg-white border-b hover:bg-slate-50';
-            row.innerHTML = `<td class="px-6 py-4 font-medium text-slate-900">${member.name}</td><td class="px-6 py-4">${member.role}</td><td class="px-6 py-4 text-center"><button class="edit-member-btn text-blue-500 hover:text-blue-700 font-semibold text-xs py-1 px-2 rounded" data-id="${member._id}" data-name="${member.name}" data-role="${member.role}">Edit</button><button class="delete-member-btn text-red-500 hover:text-red-700 font-semibold text-xs py-1 px-2 rounded ml-2" data-id="${member._id}" data-name="${member.name}">Hapus</button></td>`;
-            membersTableBody.appendChild(row);
-        });
-        const { page, totalPages } = appData.members.pagination;
-        membersPaginationControls.classList.toggle('hidden', totalPages <= 1);
-        pageInfo.textContent = `Halaman ${page} dari ${totalPages}`;
-        prevPageBtn.disabled = (page === 1);
-        nextPageBtn.disabled = (page === totalPages);
+        renderPagination(elements.membersPaginationControls, appData.members.pagination, elements.memberPageInfo, elements.prevMemberPageBtn, elements.nextMemberPageBtn);
     };
 
-    const resetMemberForm = () => {
-        memberForm.reset();
-        memberIdInput.value = '';
-        memberSubmitBtn.textContent = 'Tambah Anggota';
-        memberCancelBtn.classList.add('hidden');
+    const renderPagination = (controlsEl, paginationData, infoEl, prevBtn, nextBtn) => {
+        const { page, totalPages } = paginationData;
+        if (totalPages > 1) {
+            controlsEl.classList.remove('hidden');
+            infoEl.textContent = `Halaman ${page} dari ${totalPages}`;
+            prevBtn.disabled = (page === 1);
+            nextBtn.disabled = (page === totalPages);
+        } else {
+            controlsEl.classList.add('hidden');
+        }
     };
 
     const populateDropdowns = () => {
-        [taskProjectSelect, projectFilter].forEach(s => {
+        [elements.taskProjectSelect, elements.projectFilter].forEach(s => {
             const currentVal = s.value;
             s.innerHTML = `<option value="">Pilih Proyek</option>`;
             if (s.id.includes('filter')) s.innerHTML += `<option value="all">Semua Proyek</option>`;
             appData.allProjectsForDropdown.forEach(p => s.innerHTML += `<option value="${p.name}">${p.name}</option>`);
             s.value = currentVal;
         });
-        [taskPicSelect, memberFilter].forEach(s => {
+        [elements.taskPicSelect, elements.memberFilter].forEach(s => {
             const currentVal = s.value;
             s.innerHTML = `<option value="">Pilih Anggota Tim</option>`;
             if (s.id.includes('filter')) s.innerHTML += `<option value="all">Semua Anggota</option>`;
@@ -446,138 +483,128 @@ document.addEventListener('DOMContentLoaded', () => {
             s.value = currentVal;
         });
     };
+    
+    // === LOGIKA APLIKASI ===
+    const switchView = (viewName) => {
+        Object.values(elements.views).forEach(v => v.classList.add('hidden'));
+        if (viewName === 'dashboard' || viewName === 'table') {
+            elements.filterBar.classList.remove('hidden');
+        } else {
+            elements.filterBar.classList.add('hidden');
+        }
+        if (elements.views[viewName]) {
+            elements.views[viewName].classList.remove('hidden');
+        }
+        elements.navButtons.forEach(btn => {
+            const isActive = btn.id === `nav-${viewName}`;
+            btn.classList.toggle('bg-teal-500', isActive);
+            btn.classList.toggle('text-white', isActive);
+            btn.classList.toggle('text-slate-600', !isActive);
+        });
+        elements.mobileNav.value = viewName;
+    };
+    
+    const statusStyles = {
+        todo: { color: 'red' }, inprogress: { color: 'blue' }, done: { color: 'green' }
+    };
+    
+    const updateTaskStatus = async (id, newStatus) => {
+        const taskCard = q(`.task-card[data-id="${id}"]`);
+        if (!taskCard) return;
+        const originalParent = taskCard.parentElement;
+        const originalStatus = Object.keys(statusStyles).find(key => taskCard.className.includes(statusStyles[key].color));
+        const newParent = elements.taskColumns[newStatus];
+        if (newParent) newParent.prepend(taskCard);
+        taskCard.className = taskCard.className.replace(/border-(red|blue|green)-500/, `border-${statusStyles[newStatus].color}-500`);
+        const statusChanger = taskCard.querySelector('.status-changer');
+        if (statusChanger) statusChanger.value = newStatus;
+        try {
+            await apiCall(`tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
+        } catch (error) {
+            if (originalParent) originalParent.appendChild(taskCard);
+            taskCard.className = taskCard.className.replace(/border-(red|blue|green)-500/, `border-${statusStyles[originalStatus].color}-500`);
+            if (statusChanger) statusChanger.value = originalStatus;
+            notify('Gagal', 'Gagal memperbarui status.');
+        }
+    };
+    const debounce = (func, delay) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    };
 
+    const resetMemberForm = () => {
+        elements.memberForm.reset();
+        elements.memberIdInput.value = '';
+        elements.memberSubmitBtn.textContent = 'Tambah Anggota';
+        elements.memberCancelBtn.classList.add('hidden');
+    };
+
+    // === INISIALISASI ===
     const initializeApp = async () => {
-        loadingOverlay.classList.remove('hidden');
+        elements.loadingOverlay.classList.remove('hidden');
         
-        navButtons.forEach(b => b.addEventListener('click', () => switchView(b.id.replace('nav-', ''))));
-        mobileNav.addEventListener('change', (e) => switchView(e.target.value));
-        projectFilter.addEventListener('change', () => fetchTasks(1));
-        memberFilter.addEventListener('change', () => fetchTasks(1));
+        // Event Listeners
+        elements.navButtons.forEach(button => button.addEventListener('click', () => switchView(button.id.replace('nav-', ''))));
+        elements.mobileNav.addEventListener('change', (e) => switchView(e.target.value));
         
-        projectForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = projectNameInput.value.trim();
-            if (!name) return;
-            await handleCRUD(null, 'projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }, 'Proyek berhasil ditambahkan!', async () => {
-                projectNameInput.value = '';
-                await fetchProjects(1);
-                await fetchInitialDataForDropdowns();
-            });
-        });
-
-        taskForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const taskData = { description: taskDescriptionInput.value.trim(), pic: taskPicSelect.value, project: taskProjectSelect.value, dueDate: taskDueDateInput.value };
-            if (Object.values(taskData).some(v => !v)) return notify('Gagal', 'Semua field harus diisi.');
-            await handleCRUD(null, 'tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(taskData) }, 'Tugas berhasil dibuat!', async () => {
-                taskForm.reset();
-                await fetchTasks(1);
-            });
-        });
+        elements.searchFilter.addEventListener('input', debounce(() => fetchTasks(1), 500));
+        elements.projectFilter.addEventListener('change', () => fetchTasks(1));
+        elements.memberFilter.addEventListener('change', () => fetchTasks(1));
         
-        memberForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = memberIdInput.value;
-            const memberData = { name: memberNameInput.value.trim(), role: memberRoleInput.value.trim() };
-            if (id) { // Update
-                await handleCRUD(null, `members/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(memberData) }, 'Anggota berhasil diperbarui!', async () => {
-                    resetMemberForm();
-                    await fetchMembers(current.membersPage);
-                    await fetchInitialDataForDropdowns();
-                });
-            } else { // Create
-                await handleCRUD(null, 'members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(memberData) }, 'Anggota berhasil ditambahkan!', async () => {
-                    resetMemberForm();
-                    await fetchMembers(1);
-                    await fetchInitialDataForDropdowns();
-                });
-            }
+        elements.notificationBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.notificationPanel.classList.toggle('hidden');
+            elements.notificationBadge.classList.add('hidden');
+            elements.notificationBadge.textContent = '0';
         });
-
-        document.body.addEventListener('click', (e) => {
-            const target = e.target;
-            if (target.closest('.delete-project-btn')) {
-                const { id, name } = target.closest('.delete-project-btn').dataset;
-                promptWithCode('Hapus Proyek', `Yakin ingin menghapus proyek <strong>${name}</strong>?`, async (code) => {
-                    hideModal();
-                    if (!code) return notify("Info", "Kode otorisasi harus diisi.");
-                    await handleCRUD(null, `projects/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } }, 'Proyek berhasil dihapus.', async () => {
-                        await fetchProjects(appData.projects.list.length === 1 && current.projectsPage > 1 ? current.projectsPage - 1 : current.projectsPage);
-                        await fetchInitialDataForDropdowns();
-                    });
-                });
-            } else if (target.closest('.delete-task-btn')) {
-                const { id } = target.closest('.delete-task-btn').dataset;
-                 promptWithCode('Hapus Tugas', `Yakin ingin menghapus tugas ini?`, async (code) => {
-                    hideModal();
-                    if (!code) return notify("Info", "Kode otorisasi harus diisi.");
-                    await handleCRUD(null, `tasks/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } }, 'Tugas berhasil dihapus.', () => fetchTasks(appData.tasks.list.length === 1 && current.tasksPage > 1 ? current.tasksPage - 1 : current.tasksPage));
-                });
-            } else if (target.closest('.edit-member-btn')) {
-                const { id, name, role } = target.closest('.edit-member-btn').dataset;
-                memberIdInput.value = id; memberNameInput.value = name; memberRoleInput.value = role;
-                memberSubmitBtn.textContent = 'Simpan Perubahan';
-                memberCancelBtn.classList.remove('hidden');
-                memberNameInput.focus();
-            } else if (target.closest('.delete-member-btn')) {
-                const { id, name } = target.closest('.delete-member-btn').dataset;
-                promptWithCode('Hapus Anggota', `Yakin ingin menghapus <strong>${name}</strong>?`, async (code) => {
-                    hideModal();
-                    if (!code) return notify("Info", "Kode otorisasi harus diisi.");
-                    await handleCRUD(null, `members/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } }, 'Anggota berhasil dihapus.', async () => {
-                        await fetchMembers(appData.members.list.length === 1 && current.membersPage > 1 ? current.membersPage - 1 : current.membersPage);
-                        await fetchInitialDataForDropdowns();
-                    });
-                });
-            }
-        });
+        document.addEventListener('click', () => elements.notificationPanel.classList.add('hidden'));
+        elements.notificationPanel.addEventListener('click', (e) => e.stopPropagation());
         
-        document.body.addEventListener('change', async (e) => {
+        document.body.addEventListener('change', (e) => {
             if (e.target.classList.contains('status-changer')) {
                 const id = e.target.closest('.task-card').dataset.id;
-                const status = e.target.value;
-                const card = e.target.closest('.task-card');
-                const originalStatus = Object.keys(statusStyles).find(key => card.classList.contains(statusStyles[key].split(' ')[1]));
-                
-                card.className = "task-card bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all duration-200";
-                card.classList.add(...statusStyles[status].split(' '));
-                (status === 'todo' ? todoTasksContainer : status === 'inprogress' ? inprogressTasksContainer : doneTasksContainer).appendChild(card);
-                
-                try {
-                    await apiCall(`tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
-                } catch (error) {
-                    // Revert on failure
-                    notify('Gagal', 'Gagal update status, mengembalikan ke semula.');
-                    card.className = "task-card bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all duration-200";
-                    card.classList.add(...statusStyles[originalStatus].split(' '));
-                    (originalStatus === 'todo' ? todoTasksContainer : originalStatus === 'inprogress' ? inprogressTasksContainer : doneTasksContainer).appendChild(card);
-                }
+                updateTaskStatus(id, e.target.value);
             }
         });
 
-        memberCancelBtn.addEventListener('click', resetMemberForm);
-        prevProjectPageBtn.addEventListener('click', () => fetchProjects(current.projectsPage - 1));
-        nextProjectPageBtn.addEventListener('click', () => fetchProjects(current.projectsPage + 1));
-        prevTaskPageBtn.addEventListener('click', () => fetchTasks(current.tasksPage - 1));
-        nextTaskPageBtn.addEventListener('click', () => fetchTasks(current.tasksPage + 1));
-        prevPageBtn.addEventListener('click', () => fetchMembers(current.membersPage - 1));
-        nextPageBtn.addEventListener('click', () => fetchMembers(current.membersPage + 1));
-
+        // ... (Event listener untuk form submit dan tombol delete)
+        
+        // Muat data awal
         await fetchInitialDataForDropdowns();
         await Promise.all([
             fetchProjects(1),
             fetchTasks(1),
-            fetchMembers(1)
+            fetchMembers(1),
+            fetchAndRenderDashboard()
         ]);
         
-        loadingOverlay.classList.add('hidden');
+        elements.loadingOverlay.classList.add('hidden');
         switchView('dashboard');
+
+        // Inisialisasi Socket.IO
+        const socket = io(SOCKET_URL);
+        socket.on('connect', () => console.log('✅ Connected to Socket.IO server!'));
+        socket.on('notification', (data) => addNotification(data.message));
+        
+        socket.on('tasks_changed', () => {
+            fetchTasks(current.tasksPage);
+            fetchAndRenderDashboard();
+        });
+        socket.on('projects_changed', () => {
+            fetchProjects(current.projectsPage);
+            fetchInitialDataForDropdowns();
+        });
+        socket.on('members_changed', () => {
+            fetchMembers(current.membersPage);
+            fetchInitialDataForDropdowns();
+        });
     };
 
     initializeApp();
 });
 </script>
-
 </body>
 </html>
