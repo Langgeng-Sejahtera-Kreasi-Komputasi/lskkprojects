@@ -200,8 +200,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // === KONFIGURASI ===
-    const API_URL = 'https://timflow.lskk.co.id/api';
-    const SOCKET_URL = 'https://timflow.lskk.co.id';
+    const API_URL = 'https://timflow.lskk.co.id/api'; // Ganti dengan URL backend Anda
+    const SOCKET_URL = 'https://timflow.lskk.co.id'; // Ganti dengan URL backend Anda
 
     // === STATE ===
     let appData = {
@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const addNotification = (message) => {
         const firstItem = elements.notificationList.querySelector('p');
-        if (firstItem) firstItem.remove();
+        if (firstItem && firstItem.textContent.includes('Belum ada notifikasi')) firstItem.remove();
         const notifItem = document.createElement('div');
         notifItem.className = 'p-2 border-b border-slate-100 text-slate-700';
         notifItem.textContent = message;
@@ -305,6 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const errorData = await res.json();
                 throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
             }
+            // Handle responses that might not have a body (e.g., DELETE 204)
+            if (res.status === 204) return null;
             return res.json();
         } catch (error) {
             console.error(`API call failed for ${endpoint}:`, error);
@@ -383,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const renderTasks = () => {
         Object.values(elements.taskColumns).forEach(c => c.innerHTML = '');
-        if (appData.tasks.list.length === 0) return;
+        if (!appData.tasks.list || appData.tasks.list.length === 0) return;
         appData.tasks.list.forEach(task => {
             const card = createTaskCard(task);
             if(elements.taskColumns[task.status]) elements.taskColumns[task.status].appendChild(card);
@@ -404,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderTable = () => {
         const tasks = appData.tasks.list;
         elements.taskTableBody.innerHTML = '';
-        if (tasks.length === 0) {
+        if (!tasks || tasks.length === 0) {
             elements.taskTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Tidak ada tugas yang sesuai.</td></tr>`;
         } else {
             tasks.forEach(task => {
@@ -423,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderProjectList = () => {
         elements.projectList.innerHTML = "";
         const projects = appData.projects.list;
-        if (projects.length === 0 && current.projectsPage === 1) {
+        if (!projects || (projects.length === 0 && current.projectsPage === 1)) {
             elements.projectList.innerHTML = `<li class="text-sm text-slate-500 text-center p-4">Belum ada proyek.</li>`;
         } else {
             projects.forEach(p => {
@@ -439,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderMembersTable = () => {
         elements.membersTableBody.innerHTML = '';
         const members = appData.members.list;
-        if (members.length === 0 && current.membersPage === 1) {
+        if (!members || (members.length === 0 && current.membersPage === 1)) {
             elements.membersTableBody.innerHTML = `<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada anggota tim.</td></tr>`;
         } else {
             members.forEach(member => {
@@ -453,6 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderPagination = (controlsEl, paginationData, infoEl, prevBtn, nextBtn) => {
+        if (!paginationData) return;
         const { page, totalPages } = paginationData;
         if (totalPages > 1) {
             controlsEl.classList.remove('hidden');
@@ -468,17 +471,17 @@ document.addEventListener('DOMContentLoaded', () => {
         [elements.taskProjectSelect, elements.projectFilter].forEach(s => {
             const currentVal = s.value;
             s.innerHTML = `<option value="">Pilih Proyek</option>`;
-            if (s.id.includes('filter')) s.innerHTML += `<option value="all">Semua Proyek</option>`;
+            if (s.id.includes('filter')) s.innerHTML = `<option value="all">Semua Proyek</option>`;
             appData.allProjectsForDropdown.forEach(p => s.innerHTML += `<option value="${p.name}">${p.name}</option>`);
             s.value = currentVal;
         });
         [elements.taskPicSelect, elements.memberFilter].forEach(s => {
             const currentVal = s.value;
             s.innerHTML = `<option value="">Pilih Anggota Tim</option>`;
-            if (s.id.includes('filter')) s.innerHTML += `<option value="all">Semua Anggota</option>`;
+            if (s.id.includes('filter')) s.innerHTML = `<option value="all">Semua Anggota</option>`;
             appData.allMembersForDropdown.forEach(m => {
-                const optionText = `${m.name} (${m.role})`;
-                s.innerHTML += `<option value="${optionText}">${optionText}</option>`
+                const optionText = `${m.name}`; // Store only name as value
+                s.innerHTML += `<option value="${optionText}">${m.name} (${m.role})</option>`
             });
             s.value = currentVal;
         });
@@ -512,21 +515,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const taskCard = q(`.task-card[data-id="${id}"]`);
         if (!taskCard) return;
         const originalParent = taskCard.parentElement;
-        const originalStatus = Object.keys(statusStyles).find(key => taskCard.className.includes(statusStyles[key].color));
-        const newParent = elements.taskColumns[newStatus];
-        if (newParent) newParent.prepend(taskCard);
-        taskCard.className = taskCard.className.replace(/border-(red|blue|green)-500/, `border-${statusStyles[newStatus].color}-500`);
-        const statusChanger = taskCard.querySelector('.status-changer');
-        if (statusChanger) statusChanger.value = newStatus;
+        const originalStatus = Object.keys(statusStyles).find(key => taskCard.className.includes(`border-${statusStyles[key].color}-500`));
+
         try {
-            await apiCall(`tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
+             await apiCall(`tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
+            // Let socket event handle the re-render for consistency
         } catch (error) {
-            if (originalParent) originalParent.appendChild(taskCard);
-            taskCard.className = taskCard.className.replace(/border-(red|blue|green)-500/, `border-${statusStyles[originalStatus].color}-500`);
-            if (statusChanger) statusChanger.value = originalStatus;
-            notify('Gagal', 'Gagal memperbarui status.');
+            // Revert optimistic UI on failure
+            if (originalParent && originalStatus) {
+                const originalColumn = elements.taskColumns[originalStatus];
+                if (originalColumn) originalColumn.prepend(taskCard);
+                
+                const statusChanger = taskCard.querySelector('.status-changer');
+                if (statusChanger) statusChanger.value = originalStatus;
+            }
+             notify('Gagal', 'Gagal memperbarui status.');
         }
     };
+
     const debounce = (func, delay) => {
         let timeout;
         return (...args) => {
@@ -579,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (deleteProjectBtn) {
                 const { id, name } = deleteProjectBtn.dataset;
-                promptWithCode('Hapus Proyek', `Yakin ingin menghapus proyek <strong>${name}</strong>?`, async (code) => {
+                promptWithCode('Hapus Proyek', `Yakin ingin menghapus proyek <strong>${name}</strong>? Ini akan menghapus semua tugas di dalamnya.`, async (code) => {
                     hideModal();
                     if (!code) return notify("Info", "Kode otorisasi harus diisi.");
                     await apiCall(`projects/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } });
@@ -609,9 +615,59 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        elements.taskForm.addEventListener('submit', async (e) => { /* ... logika submit form tugas ... */ });
-        elements.projectForm.addEventListener('submit', async (e) => { /* ... logika submit form proyek ... */ });
-        elements.memberForm.addEventListener('submit', async (e) => { /* ... logika submit form anggota ... */ });
+        // --- FIX: Add Form Submit Handlers ---
+        elements.taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                description: elements.taskDescriptionInput.value.trim(),
+                project: elements.taskProjectSelect.value,
+                pic: elements.taskPicSelect.value,
+                dueDate: elements.taskDueDateInput.value
+            };
+            if (!formData.description || !formData.project || !formData.pic || !formData.dueDate) {
+                return notify('Error Validasi', 'Semua kolom wajib diisi.');
+            }
+            try {
+                await apiCall('tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+                elements.taskForm.reset();
+            } catch (error) {}
+        });
+
+        elements.projectForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = elements.projectNameInput.value.trim();
+            if (!name) return notify('Error Validasi', 'Nama proyek tidak boleh kosong.');
+            try {
+                await apiCall('projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+                elements.projectForm.reset();
+            } catch (error) {}
+        });
+
+        elements.memberForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = elements.memberIdInput.value;
+            const memberData = { name: elements.memberNameInput.value.trim(), role: elements.memberRoleInput.value.trim() };
+            if (!memberData.name || !memberData.role) return notify('Error Validasi', 'Nama dan Jabatan wajib diisi.');
+            
+            try {
+                if (id) {
+                    await apiCall(`members/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(memberData) });
+                } else {
+                    await apiCall('members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(memberData) });
+                }
+                resetMemberForm();
+            } catch (error) {}
+        });
+        
+        elements.memberCancelBtn.addEventListener('click', resetMemberForm);
+
+        // --- FIX: Add Pagination Handlers ---
+        elements.prevProjectPageBtn.addEventListener('click', () => fetchProjects(current.projectsPage - 1));
+        elements.nextProjectPageBtn.addEventListener('click', () => fetchProjects(current.projectsPage + 1));
+        elements.prevMemberPageBtn.addEventListener('click', () => fetchMembers(current.membersPage - 1));
+        elements.nextMemberPageBtn.addEventListener('click', () => fetchMembers(current.membersPage + 1));
+        elements.prevTaskPageBtn.addEventListener('click', () => fetchTasks(current.tasksPage - 1));
+        elements.nextTaskPageBtn.addEventListener('click', () => fetchTasks(current.tasksPage + 1));
 
         // Muat data awal
         await fetchInitialDataForDropdowns();
@@ -631,14 +687,17 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('notification', (data) => addNotification(data.message));
         
         socket.on('tasks_changed', () => {
+            console.log('socket: tasks_changed detected');
             fetchTasks(current.tasksPage);
             fetchAndRenderDashboard();
         });
         socket.on('projects_changed', () => {
+            console.log('socket: projects_changed detected');
             fetchProjects(current.projectsPage);
             fetchInitialDataForDropdowns();
         });
         socket.on('members_changed', () => {
+            console.log('socket: members_changed detected');
             fetchMembers(current.membersPage);
             fetchInitialDataForDropdowns();
         });
