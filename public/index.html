@@ -22,6 +22,8 @@
         .pagination-btn:disabled { cursor: not-allowed; background-color: #e2e8f0; }
         #notification-badge { transform: scale(0.8) translate(50%, -50%); }
         .task-card { transition: all 0.2s ease-out; }
+        #edit-modal-content { transition: all 0.3s ease-out; }
+        #edit-task-modal:not(.hidden) #edit-modal-content { transform: translateY(0); }
     </style>
 </head>
 <body class="text-slate-800">
@@ -153,7 +155,7 @@
                     <table class="w-full text-sm text-left text-slate-600">
                         <thead class="text-xs text-slate-700 uppercase bg-slate-100">
                             <tr>
-                                <th scope="col" class="px-6 py-3">Tugas</th><th scope="col" class="px-6 py-3">Proyek</th><th scope="col" class="px-6 py-3">PIC</th><th scope="col" class="px-6 py-3">Deadline</th><th scope="col" class="px-6 py-3">Status</th>
+                                <th scope="col" class="px-6 py-3">Tugas</th><th scope="col" class="px-6 py-3">Proyek</th><th scope="col" class="px-6 py-3">PIC</th><th scope="col" class="px-6 py-3">Deadline</th><th scope="col" class="px-6 py-3">Status</th><th scope="col" class="px-6 py-3 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="task-table-body"></tbody>
@@ -194,6 +196,52 @@
             <p id="modal-message" class="mt-2 text-sm text-slate-600"></p>
             <input type="text" id="modal-input" class="hidden w-full mt-4 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" placeholder="Masukkan kode otorisasi...">
             <div id="modal-actions" class="mt-6 flex justify-end space-x-3"></div>
+        </div>
+    </div>
+    
+    <div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div id="edit-modal-content" class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg transform transition-all -translate-y-10">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 class="text-lg font-bold text-slate-800">📝 Edit Tugas</h3>
+                <button id="close-edit-modal-btn" class="text-slate-400 hover:text-red-500 transition rounded-full p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <form id="edit-task-form" class="space-y-4">
+                <input type="hidden" id="edit-task-id">
+                <div>
+                    <label for="edit-task-description" class="block text-sm font-medium text-slate-600 mb-1">Deskripsi Tugas</label>
+                    <input type="text" id="edit-task-description" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-task-project" class="block text-sm font-medium text-slate-600 mb-1">Proyek</label>
+                        <select id="edit-task-project" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"></select>
+                    </div>
+                    <div>
+                        <label for="edit-task-pic" class="block text-sm font-medium text-slate-600 mb-1">Anggota Tim</label>
+                        <select id="edit-task-pic" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"></select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label for="edit-task-due-date" class="block text-sm font-medium text-slate-600 mb-1">Deadline</label>
+                        <input type="date" id="edit-task-due-date" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
+                    </div>
+                     <div>
+                        <label for="edit-task-status" class="block text-sm font-medium text-slate-600 mb-1">Status</label>
+                        <select id="edit-task-status" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
+                           <option value="todo">Belum Dikerjakan</option>
+                           <option value="inprogress">Dikerjakan</option>
+                           <option value="done">Selesai</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3 pt-4 border-t">
+                    <button type="button" id="cancel-edit-task-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-md transition">Batal</button>
+                    <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-6 rounded-md transition shadow">Simpan Perubahan</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -262,7 +310,21 @@ document.addEventListener('DOMContentLoaded', () => {
         prevTaskPageBtn: el('prev-task-page-btn'),
         nextTaskPageBtn: el('next-task-page-btn'),
         taskPageInfo: el('task-page-info'),
-        modal: { backdrop: el('modal-backdrop'), content: el('modal-content'), title: el('modal-title'), message: el('modal-message'), input: el('modal-input'), actions: el('modal-actions') }
+        modal: { backdrop: el('modal-backdrop'), content: el('modal-content'), title: el('modal-title'), message: el('modal-message'), input: el('modal-input'), actions: el('modal-actions') },
+        // *** START: Elemen baru untuk modal edit ***
+        editTaskModal: {
+            backdrop: el('edit-task-modal'),
+            form: el('edit-task-form'),
+            closeBtn: el('close-edit-modal-btn'),
+            cancelBtn: el('cancel-edit-task-btn'),
+            idInput: el('edit-task-id'),
+            descriptionInput: el('edit-task-description'),
+            projectSelect: el('edit-task-project'),
+            picSelect: el('edit-task-pic'),
+            dueDateInput: el('edit-task-due-date'),
+            statusSelect: el('edit-task-status'),
+        }
+        // *** END: Elemen baru untuk modal edit ***
     };
     
     // === MODAL & NOTIFIKASI ===
@@ -305,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const errorData = await res.json();
                 throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
             }
-            // Handle responses that might not have a body (e.g., DELETE 204)
             if (res.status === 204) return null;
             return res.json();
         } catch (error) {
@@ -407,15 +468,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const tasks = appData.tasks.list;
         elements.taskTableBody.innerHTML = '';
         if (!tasks || tasks.length === 0) {
-            elements.taskTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Tidak ada tugas yang sesuai.</td></tr>`;
+            elements.taskTableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-slate-500">Tidak ada tugas yang sesuai.</td></tr>`;
         } else {
             tasks.forEach(task => {
                 const row = document.createElement('tr');
-                row.className = 'bg-white border-b hover:bg-slate-50';
+                row.className = 'bg-white border-b hover:bg-slate-50 transition-colors';
                 const statusMap = { todo: { text: "Belum Dikerjakan", class: "bg-red-100 text-red-800" }, inprogress: { text: "Dikerjakan", class: "bg-blue-100 text-blue-800" }, done: { text: "Selesai", class: "bg-green-100 text-green-800" } };
                 const statusInfo = statusMap[task.status] || {text: 'N/A', class: 'bg-gray-100 text-gray-800'};
                 const formattedDate = new Date(task.dueDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-                row.innerHTML = `<td class="px-6 py-4 font-medium text-slate-900">${task.description}</td><td class="px-6 py-4">${task.project}</td><td class="px-6 py-4">${task.pic}</td><td class="px-6 py-4">${formattedDate}</td><td class="px-6 py-4"><span class="px-3 py-1 text-xs font-semibold rounded-full ${statusInfo.class}">${statusInfo.text}</span></td>`;
+                
+                // *** START: Modifikasi untuk menambahkan kolom aksi ***
+                const safeDescription = task.description.replace(/"/g, '&quot;');
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-slate-900">${task.description}</td>
+                    <td class="px-6 py-4">${task.project}</td>
+                    <td class="px-6 py-4">${task.pic}</td>
+                    <td class="px-6 py-4">${formattedDate}</td>
+                    <td class="px-6 py-4"><span class="px-3 py-1 text-xs font-semibold rounded-full ${statusInfo.class}">${statusInfo.text}</span></td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button 
+                                class="edit-task-table-btn text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-100 transition" 
+                                title="Edit Tugas"
+                                data-id="${task._id}"
+                                data-description="${safeDescription}"
+                                data-project="${task.project}"
+                                data-pic="${task.pic}"
+                                data-due-date="${task.dueDate.split('T')[0]}"
+                                data-status="${task.status}">
+                                <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>
+                            </button>
+                            <button 
+                                class="delete-task-btn text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition" 
+                                title="Hapus Tugas" 
+                                data-id="${task._id}">
+                                <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </td>`;
+                // *** END: Modifikasi untuk menambahkan kolom aksi ***
+                
                 elements.taskTableBody.appendChild(row);
             });
         }
@@ -468,23 +560,31 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const populateDropdowns = () => {
-        [elements.taskProjectSelect, elements.projectFilter].forEach(s => {
+        // *** START: Modifikasi untuk menyertakan dropdown di modal edit ***
+        const projectDropdowns = [elements.taskProjectSelect, elements.projectFilter, elements.editTaskModal.projectSelect];
+        const memberDropdowns = [elements.taskPicSelect, elements.memberFilter, elements.editTaskModal.picSelect];
+        
+        projectDropdowns.forEach(s => {
+            if (!s) return;
             const currentVal = s.value;
             s.innerHTML = `<option value="">Pilih Proyek</option>`;
             if (s.id.includes('filter')) s.innerHTML = `<option value="all">Semua Proyek</option>`;
             appData.allProjectsForDropdown.forEach(p => s.innerHTML += `<option value="${p.name}">${p.name}</option>`);
             s.value = currentVal;
         });
-        [elements.taskPicSelect, elements.memberFilter].forEach(s => {
+        
+        memberDropdowns.forEach(s => {
+            if (!s) return;
             const currentVal = s.value;
             s.innerHTML = `<option value="">Pilih Anggota Tim</option>`;
             if (s.id.includes('filter')) s.innerHTML = `<option value="all">Semua Anggota</option>`;
             appData.allMembersForDropdown.forEach(m => {
-                const optionText = `${m.name}`; // Store only name as value
+                const optionText = `${m.name}`;
                 s.innerHTML += `<option value="${optionText}">${m.name} (${m.role})</option>`
             });
             s.value = currentVal;
         });
+        // *** END: Modifikasi ***
     };
     
     // === LOGIKA APLIKASI ===
@@ -512,23 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const updateTaskStatus = async (id, newStatus) => {
-        const taskCard = q(`.task-card[data-id="${id}"]`);
-        if (!taskCard) return;
-        const originalParent = taskCard.parentElement;
-        const originalStatus = Object.keys(statusStyles).find(key => taskCard.className.includes(`border-${statusStyles[key].color}-500`));
-
         try {
              await apiCall(`tasks/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
-            // Let socket event handle the re-render for consistency
         } catch (error) {
-            // Revert optimistic UI on failure
-            if (originalParent && originalStatus) {
-                const originalColumn = elements.taskColumns[originalStatus];
-                if (originalColumn) originalColumn.prepend(taskCard);
-                
-                const statusChanger = taskCard.querySelector('.status-changer');
-                if (statusChanger) statusChanger.value = originalStatus;
-            }
              notify('Gagal', 'Gagal memperbarui status.');
         }
     };
@@ -582,6 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const deleteTaskBtn = target.closest('.delete-task-btn');
             const deleteMemberBtn = target.closest('.delete-member-btn');
             const editMemberBtn = target.closest('.edit-member-btn');
+            // *** START: Tambahan listener untuk tombol edit tugas di tabel ***
+            const editTaskTableBtn = target.closest('.edit-task-table-btn');
+            // *** END: Tambahan listener ***
 
             if (deleteProjectBtn) {
                 const { id, name } = deleteProjectBtn.dataset;
@@ -612,10 +701,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.memberSubmitBtn.textContent = 'Simpan Perubahan';
                 elements.memberCancelBtn.classList.remove('hidden');
                 elements.memberNameInput.focus();
+            // *** START: Logika untuk menampilkan modal edit tugas ***
+            } else if (editTaskTableBtn) {
+                 const { id, description, project, pic, dueDate, status } = editTaskTableBtn.dataset;
+                 const modal = elements.editTaskModal;
+                 modal.idInput.value = id;
+                 modal.descriptionInput.value = description;
+                 modal.projectSelect.value = project;
+                 modal.picSelect.value = pic;
+                 modal.dueDateInput.value = dueDate;
+                 modal.statusSelect.value = status;
+                 modal.backdrop.classList.remove('hidden');
             }
+            // *** END: Logika untuk menampilkan modal edit tugas ***
         });
         
-        // --- FIX: Add Form Submit Handlers ---
         elements.taskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = {
@@ -661,7 +761,36 @@ document.addEventListener('DOMContentLoaded', () => {
         
         elements.memberCancelBtn.addEventListener('click', resetMemberForm);
 
-        // --- FIX: Add Pagination Handlers ---
+        // *** START: Event listener untuk form edit tugas ***
+        elements.editTaskModal.form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const modal = elements.editTaskModal;
+            const id = modal.idInput.value;
+            const updatedData = {
+                description: modal.descriptionInput.value.trim(),
+                project: modal.projectSelect.value,
+                pic: modal.picSelect.value,
+                dueDate: modal.dueDateInput.value,
+                status: modal.statusSelect.value
+            };
+
+            try {
+                await apiCall(`tasks/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                modal.backdrop.classList.add('hidden'); // Sembunyikan modal setelah berhasil
+            } catch (error) {
+                // Error sudah ditangani oleh apiCall
+            }
+        });
+
+        const hideEditModal = () => elements.editTaskModal.backdrop.classList.add('hidden');
+        elements.editTaskModal.closeBtn.addEventListener('click', hideEditModal);
+        elements.editTaskModal.cancelBtn.addEventListener('click', hideEditModal);
+        // *** END: Event listener untuk form edit tugas ***
+
         elements.prevProjectPageBtn.addEventListener('click', () => fetchProjects(current.projectsPage - 1));
         elements.nextProjectPageBtn.addEventListener('click', () => fetchProjects(current.projectsPage + 1));
         elements.prevMemberPageBtn.addEventListener('click', () => fetchMembers(current.membersPage - 1));

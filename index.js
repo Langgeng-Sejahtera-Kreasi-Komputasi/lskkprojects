@@ -162,17 +162,43 @@ app.post('/api/tasks', async (req, res) => {
     }
 });
 
+// app.put('/api/tasks/:id', async (req, res) => {
+//     try {
+//         const updatedTask = await Task.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+//         if (!updatedTask) return res.status(404).json({ message: 'Tugas tidak ditemukan.' });
+//         io.emit('notification', { message: `Tugas "${updatedTask.description.substring(0, 20)}..." diubah ke ${req.body.status}.`, type: 'success' });
+//         io.emit('tasks_changed');
+//         res.json(updatedTask);
+//     } catch (err) {
+//         res.status(500).json({ message: 'Server error.' });
+//     }
+// });
+// server.js - HANYA BAGIAN YANG DIUBAH
+
+// ... (kode server.js sebelumnya) ...
+
 app.put('/api/tasks/:id', async (req, res) => {
     try {
-        const updatedTask = await Task.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+        // --- PERUBAHAN DI SINI ---
+        // Mengizinkan pembaruan field apa pun yang ada di req.body
+        const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        // -------------------------
+
         if (!updatedTask) return res.status(404).json({ message: 'Tugas tidak ditemukan.' });
-        io.emit('notification', { message: `Tugas "${updatedTask.description.substring(0, 20)}..." diubah ke ${req.body.status}.`, type: 'success' });
+
+        // --- PERUBAHAN DI SINI ---
+        // Pesan notifikasi yang lebih umum
+        io.emit('notification', { message: `Tugas "${updatedTask.description.substring(0, 20)}..." telah diperbarui.`, type: 'success' });
+        // -------------------------
+
         io.emit('tasks_changed');
         res.json(updatedTask);
     } catch (err) {
         res.status(500).json({ message: 'Server error.' });
     }
 });
+
+// ... (sisa kode server.js tetap sama) ...
 
 app.delete('/api/tasks/:id', async (req, res) => {
     const authCode = req.headers['x-auth-code'];
