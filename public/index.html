@@ -200,8 +200,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // === KONFIGURASI ===
-    const API_URL = 'https://timflow.lskk.co.id/api';
-    const SOCKET_URL = 'https://timflow.lskk.co.id';
+    const API_URL = 'http://localhost:5102/api';
+    const SOCKET_URL = 'http://localhost:5102';
 
     // === STATE ===
     let appData = {
@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const renderTasks = () => {
         Object.values(elements.taskColumns).forEach(c => c.innerHTML = '');
-        if (appData.tasks.list.length === 0 && current.tasksPage === 1) return;
+        if (appData.tasks.list.length === 0) return;
         appData.tasks.list.forEach(task => {
             const card = createTaskCard(task);
             if(elements.taskColumns[task.status]) elements.taskColumns[task.status].appendChild(card);
@@ -570,8 +570,49 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // ... (Event listener untuk form submit dan tombol delete)
+        document.body.addEventListener('click', (e) => {
+            const target = e.target;
+            const deleteProjectBtn = target.closest('.delete-project-btn');
+            const deleteTaskBtn = target.closest('.delete-task-btn');
+            const deleteMemberBtn = target.closest('.delete-member-btn');
+            const editMemberBtn = target.closest('.edit-member-btn');
+
+            if (deleteProjectBtn) {
+                const { id, name } = deleteProjectBtn.dataset;
+                promptWithCode('Hapus Proyek', `Yakin ingin menghapus proyek <strong>${name}</strong>?`, async (code) => {
+                    hideModal();
+                    if (!code) return notify("Info", "Kode otorisasi harus diisi.");
+                    await apiCall(`projects/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } });
+                });
+            } else if (deleteTaskBtn) {
+                const { id } = deleteTaskBtn.dataset;
+                promptWithCode('Hapus Tugas', `Yakin ingin menghapus tugas ini?`, async (code) => {
+                    hideModal();
+                    if (!code) return notify("Info", "Kode otorisasi harus diisi.");
+                    await apiCall(`tasks/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } });
+                });
+            } else if (deleteMemberBtn) {
+                const { id, name } = deleteMemberBtn.dataset;
+                promptWithCode('Hapus Anggota', `Yakin ingin menghapus <strong>${name}</strong>?`, async (code) => {
+                    hideModal();
+                    if (!code) return notify("Info", "Kode otorisasi harus diisi.");
+                    await apiCall(`members/${id}`, { method: 'DELETE', headers: { 'X-Auth-Code': code } });
+                });
+            } else if (editMemberBtn) {
+                const { id, name, role } = editMemberBtn.dataset;
+                elements.memberIdInput.value = id;
+                elements.memberNameInput.value = name;
+                elements.memberRoleInput.value = role;
+                elements.memberSubmitBtn.textContent = 'Simpan Perubahan';
+                elements.memberCancelBtn.classList.remove('hidden');
+                elements.memberNameInput.focus();
+            }
+        });
         
+        elements.taskForm.addEventListener('submit', async (e) => { /* ... logika submit form tugas ... */ });
+        elements.projectForm.addEventListener('submit', async (e) => { /* ... logika submit form proyek ... */ });
+        elements.memberForm.addEventListener('submit', async (e) => { /* ... logika submit form anggota ... */ });
+
         // Muat data awal
         await fetchInitialDataForDropdowns();
         await Promise.all([
