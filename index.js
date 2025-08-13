@@ -7,6 +7,7 @@ const cors = require('cors');
 require('dotenv').config();
 const http = require('http');
 const { Server } = require("socket.io");
+const path = require('path');
 
 // --- 2. Initialize App & Server ---
 const app = express();
@@ -23,6 +24,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// --- MODIFIKASI: Sajikan file statis dari folder 'dist' ---
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// --- MODIFIKASI: Rute untuk menyajikan halaman HTML ---
+// Rute utama (/) akan menyajikan landing page
+app.get('/apps', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 
 // --- 4. Connect to MongoDB ---
 mongoose.connect(process.env.MONGO_URI)
