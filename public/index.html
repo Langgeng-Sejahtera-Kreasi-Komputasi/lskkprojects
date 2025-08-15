@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pic = elements.memberFilter.value;
         const search = elements.searchFilter.value;
         try {
-            const data = await apiCall(`tasks?page=${page}&limit=10&project=${project}&pic=${pic}&search=${search}`);
+            const data = await apiCall(`tasks?page=${page}&limit=5000&project=${project}&pic=${pic}&search=${search}`);
             appData.tasks = { list: data.data, pagination: data.pagination };
             current.tasksPage = page;
             renderTasks();
